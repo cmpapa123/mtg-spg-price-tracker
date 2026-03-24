@@ -1,0 +1,25 @@
+name: Daily SPG Price Update
+
+on:
+ schedule:
+ - cron: '0 5 * * *' # Runs at 5 AM UTC every day
+ workflow_dispatch: # Allows manual trigger
+
+jobs:
+ update:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ - name: Set up Node
+ uses: actions/setup-node@v4
+ with:
+ node-version: '20'
+ - name: Update prices
+ run: node update-prices.js
+ - name: Commit & push if changed
+ run: |
+ git config user.name "SPG Bot"
+ git config user.email "bot@github.com"
+ git add prices_history.json
+ git diff --quiet && git diff --staged --quiet || git commit -m "Daily price update $(date +%Y-%m-%d)"
+ git push
