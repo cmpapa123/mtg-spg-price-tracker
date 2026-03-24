@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>SPG Price Tracker • Magic: The Gathering</title>
+ <script src="https://cdn.tailwindcss.com"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+ <style>
+ .card-img { transition: transform 0.2s; }
+ .card-img:hover { transform: scale(1.05); }
+ </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+ <div class="max-w-6xl mx-auto p-6">
+ <header class="text-center mb-10">
+ <h1 class="text-5xl font-bold mb-2 tracking-tight">Special Guests (SPG) Price Tracker</h1>
+ <p class="text-zinc-400">Biggest daily % movers at the top • Powered by Scryfall • Updated daily</p>
+ </header>
+
+ <div id="content" class="space-y-12">
+ <!-- Populated by JS -->
+ </div>
+ </div>
+
+ <script>
+ async function loadData() {
+ const res = await fetch('prices_history.json');
+ const history = await res.json();
+ const dates = Object.keys(history).sort();
+ if (dates.length < 2) {
+ document.getElementById('content').innerHTML = `<p class="text-center text-zinc-400">Waiting for first price snapshot...</p>`;
+ return;
+ }
+
+ const todayStr = dates[dates.length-1];
+ const yesterdayStr = dates[dates.length-2];
+ const today = history[todayStr];
+ const yesterday = history[yesterdayStr];
+
+ let movers = [];
+ Object.keys(today).forEach(id => {
+ const t = today[id];
+ const y = yesterday[id];
+ let pct = 0;
+ if (y && y.price > 0) {
+ pct = ((t.price - y.price) / y.price) * 100;
+ } else {
+ pct = t.price > 0 ? 999 : 0; // new cards float to top
+ }
+ movers.push({
+ id, name: t.name, price: t.price.toFixed(2),
+ pct: pct.toFixed(2),
+ image: t.image,
+ uri: t.uri
+ });
+ });
+
+ movers.sort((a,b) => parseFloat(b.pct) - parseFloat(a.pct));
+
+ let html = `
+ <section>
+ <h2 class="text-3xl font-bold mb-6 flex items-center gap-3">
+ <span class="text-emerald-400">🚀</span> Top Movers Today
+ </h2>
+ <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+ `;
+
+ movers.slice(0,9).forEach(card => { // top 9 in nice cards
+ const color = parseFloat(card.pct) >= 0 ? 'text-emerald-400' : 'text-red-400';
+ html += `
+ <a href="${card.uri}" target="_blank" class="block bg-zinc-900 rounded-2xl overflow-hidden hover:ring-2 hover:ring-violet-500 transition">
+ <img src="${card.image}" class="card-img w-full aspect-[5/7] object-cover">
+ <div class="p-4">
+ <p class="font-medium leading-tight">${card.name}</p>
+ <div class="flex justify-between mt-3">
+ <span class="text-2xl font-bold">$${card.price}</span>
+ <span class="${color} font-bold text-xl">${parseFloat(card.pct) >= 0 ? '+' : ''}${card.pct}%</span>
+ </div>
+ </div>
+ </a>
+ `;
+ });
+
+ html += `</div></section>`;
+
+ // Full table
+ html += `
+ <section>
+ <h2 class="text-3xl font-bold mb-6">All Special Guest Cards</h2>
+ <div class="overflow-x-auto bg-zinc-900 rounded-3xl">
+ <table class="w-full">
+ <thead>
+ <tr class="border-b border-zinc-800">
+ <th class="text-left p-6">Card</th>
+ <th class="text-right p-6">Price</th>
+ <th class="text-right p-6">24h Change</th>
+ </tr>
+ </thead>
+ <tbody id="table-body" class="divide-y divide-zinc-800"></tbody>
+ </table>
+ </div>
+ </section>
+ `;
+
+ document.getElementById('content').innerHTML = html;
+
+ // Populate table
+ const tbody = document.getElementById('table-body');
+ movers.forEach(card => {
+ const color = parseFloat(card.pct) >= 0 ? 'text-emerald-400' : 'text-red-400';
+ const row = document.createElement('tr');
+ row.className = 'hover:bg-zinc-800/50 transition';
+ row.innerHTML = `
+ <td class="p-6 flex items-center gap-6">
+ <img src="${card.image}" class="w-12 h-12 object-cover rounded-lg">
+ <a href="${card.uri}" target="_blank" class="font-medium hover:underline">${card.name}</a>
+ </td>
+ <td class="text-right p-6 font-mono text-lg">$${card.price}</td>
+ <td class="text-right p-6 font-bold ${color}">${parseFloat(card.pct) >= 0 ? '+' : ''}${card.pct}%</td>
+ `;
+ tbody.appendChild(row);
+ });
+ }
+
+ loadData();
+ </script>
+</body>
+</html>
